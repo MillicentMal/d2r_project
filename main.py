@@ -23,9 +23,9 @@ selected_sectors = st.sidebar.multiselect("Select Sectors", options=sorted(df['s
 filtered_df = df[df['fiscal_year'].isin(selected_years) & df['sector_name'].isin(selected_sectors)]
 human_df = filtered_df[filtered_df['is_human_impact'] == True]
 
-# Ensure disbursements are aggregated correctly by avoiding NaNs
+# Ensure disbursements are aggregated correctly, and fill NaNs with 0
 df['disbursements'] = pd.to_numeric(df['disbursements'], errors='coerce')
-human_df['disbursements'] = pd.to_numeric(human_df['disbursements'], errors='coerce')
+human_df['disbursements'] = pd.to_numeric(human_df['disbursements'], errors='coerce').fillna(0)
 
 # Title
 st.title("USAID Development Aid Impact in Rwanda (2014-2022)")
@@ -46,23 +46,26 @@ st.plotly_chart(fig_impact)
 
 # Bubble chart: Human outcomes (bubble size) vs Funding (color intensity)
 st.header("Bubble Visualization: Human Outcomes vs Disbursements")
-bubble_data = human_df.dropna(subset=['disbursements']).groupby('sector_name').agg(
+bubble_data = human_df.groupby('sector_name').agg(
     total_impact=('value', 'sum'),
     total_disbursed=('disbursements', 'sum')
 ).reset_index()
 
-fig_bubble = px.scatter(
-    bubble_data,
-    x='sector_name',
-    y='total_impact',
-    size='total_impact',
-    color='total_disbursed',
-    hover_name='sector_name',
-    title='Human Outcomes (Bubble Size) and Disbursement (Color)',
-    size_max=60
-)
-fig_bubble.update_layout(xaxis_title='Sector', yaxis_title='Total Human Outcomes')
-st.plotly_chart(fig_bubble)
+if bubble_data.empty:
+    st.warning("No bubble data available for selected filters. Try adjusting the filters.")
+else:
+    fig_bubble = px.scatter(
+        bubble_data,
+        x='sector_name',
+        y='total_impact',
+        size='total_impact',
+        color='total_disbursed',
+        hover_name='sector_name',
+        title='Human Outcomes (Bubble Size) and Disbursement (Color)',
+        size_max=60
+    )
+    fig_bubble.update_layout(xaxis_title='Sector', yaxis_title='Total Human Outcomes')
+    st.plotly_chart(fig_bubble)
 
 # Sector-wise Table
 st.header("Detailed Sector Impact Table")
